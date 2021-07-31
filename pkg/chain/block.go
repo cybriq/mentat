@@ -64,7 +64,7 @@ func (d Difficulty) ToBigInt() *big.Int {
 	return new(big.Int).Sub(MinDifficulty, new(big.Int).SetBytes(d))
 }
 
-// BigToDifficulty converts a big.Int into a difficulty value, used to compute a
+// BigToDifficulty converts big.Int into a difficulty value, used to compute a
 // new difficulty adjustment and return a value for the block
 func BigToDifficulty(bi *big.Int) Difficulty {
 	b := bi.Bytes()
@@ -81,10 +81,11 @@ type Block struct {
 	Parent Hash
 	// Time is the Unix timestamp of the block
 	Time int64
-	// Nonce is a value computed by the hash of the block nearest the
-	// staking cooldown period of 3 hours, as displaced from the block's
-	// timestamp, combined with the coinbase of the parent block
-	Nonce Hash
+	// Provenance is a value computed by the hash of the block nearest the
+	// staking cooldown period, as displaced from the block's
+	// timestamp, combined with the coinbase of the parent block,
+	// two values that don't exist until a block has been mined
+	Provenance Hash
 	// Difficulty is a value that is subtracted from the lowest difficulty
 	// (all but the largest bit 1 in a 256 bit hash) to create a difficulty
 	// target below which proofs must be or be staked equal differing by an
@@ -97,14 +98,14 @@ type Block struct {
 	Stake uint64
 	// MerkleRoot is the root hash of the transaction Merkle Tree
 	MerkleRoot Hash
-	// After a block is proposed, masternodes run a vote/compare/sign cycle
-	// which is a Schnorr signature with each masternode's signature
-	// overlaid on it, the masternode list being visible as the issued
-	// tokens and their currently controlling account.
+	// MasternodeSignature - After a block is proposed, masternodes run a
+	// vote/compare/sign cycle which generates a Schnorr signature with each
+	// masternode's signature overlaid on it, the masternode list being
+	// visible as the issued tokens and their currently controlling account.
 	//
 	// This signature indicates to nodes that no previous block can now be
-	// mined on, making the block immediately final,
-	// a requirement for Cosmos IBC protocol
+	// mined on, making the block immediately final, a requirement for
+	// Cosmos IBC protocol
 	MasternodeSignature Hash
 	// transactions is the working memory storage for the individual
 	// transactions that generate the merkle root above
