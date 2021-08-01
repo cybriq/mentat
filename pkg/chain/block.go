@@ -3,6 +3,7 @@ package chain
 import (
 	"math/big"
 
+	"github.com/niubaoshu/gotiny"
 	"github.com/zeebo/blake3"
 )
 
@@ -25,13 +26,14 @@ func (h Hash) ToAddress() (a Address) {
 	return
 }
 
-// An Address is a fixed length array representing the 20 byte blake 3 256-bit
-// hash truncated to 20 bytes used to identify an account in the database,
-// created by sending funds to the address, generated from the public key,
-// derived from the private key
+// An Address is a fixed length array representing the blake 3 256-bit hash of
+// the public key truncated to 20 bytes used to identify an account in the
+// database, created by sending funds to the address, generated from the public
+// key, derived from the private key
 type Address [20]byte
 
-// Difficulty is a variable length long integer
+// Difficulty is a variable length long integer of maximum 32 byte length
+// representing the difference between minimum difficulty and the block proof
 type Difficulty []byte
 
 // MinTargetBytes is the difficulty of 1 as a 32 byte slice, the largest number
@@ -77,6 +79,36 @@ func BigToDifficulty(bi *big.Int) Difficulty {
 // A Block represents a unit of progress for the network, and carries a payload
 // of transactions to change the state of the accounts database for users
 type Block struct {
+	Header
+	// MasternodeSignature - After a block is proposed, masternodes run a
+	// vote/compare/sign cycle which generates a Schnorr signature with each
+	// masternode's signature overlaid on it, the masternode list being
+	// visible as the issued tokens and their currently controlling account.
+	//
+	// This signature indicates to nodes that no previous block can now be
+	// mined on, making the block immediately final, a requirement for
+	// Cosmos IBC protocol.
+	//
+	// This signature is the product of the peer validation process for
+	// signatures on the block, the first signature chain to acquire the 2/3
+	// quorum of masternodes triggers the acceptance and finality of the
+	// new block.
+	//
+	// The signature is applied to the Hash of the Header, which a verifier
+	// must generate from the serialized block header.
+	// Without this signature a block may not be mined on,
+	// and the masternodes only accept one and finalize it immediately
+	// before a new block is allowed to happen (15 second minimum)
+	MasternodeSignature []byte
+	// parent is the pointer to the stored block structure,
+	// if nil it needs to be read in from the database
+	parent *Block
+	// transactions stores the transactions certified by the Block
+	transactions []interface{}
+}
+
+// Header is the metadata for the block
+type Header struct {
 	// Parent is the hash of the previous block
 	Parent Hash
 	// Time is the Unix timestamp of the block
@@ -88,26 +120,27 @@ type Block struct {
 	Provenance Hash
 	// Difficulty is a value that is subtracted from the lowest difficulty
 	// (all but the largest bit 1 in a 256 bit hash) to create a difficulty
-	// target below which proofs must be or be staked equal differing by an
-	// amount covered by the stake required to issue the block
+	// target which defines the largest proof that can be accepted,
+	// and if lower can be accepted if stake is equal to the difference
+	// between the target and the proof
 	Difficulty Difficulty
 	// Coinbase is the account to which the reward for this block is paid
 	Coinbase Address
 	// Stake is the necessary amount of stake to normalize the difficulty
-	// target, minimum of 1
+	// target, minimum of 1. This functions as a multiplier on the proof
+	// to produce the value that is compared to the difficulty target
 	Stake uint64
-	// MerkleRoot is the root hash of the transaction Merkle Tree
+	// MerkleRoot is the root hash of the transaction merkle tree
 	MerkleRoot Hash
-	// MasternodeSignature - After a block is proposed, masternodes run a
-	// vote/compare/sign cycle which generates a Schnorr signature with each
-	// masternode's signature overlaid on it, the masternode list being
-	// visible as the issued tokens and their currently controlling account.
-	//
-	// This signature indicates to nodes that no previous block can now be
-	// mined on, making the block immediately final, a requirement for
-	// Cosmos IBC protocol
-	MasternodeSignature Hash
-	// transactions is the working memory storage for the individual
-	// transactions that generate the merkle root above
-	transactions []interface{}
+}
+
+// Serialize the block
+func (h *Header) Serialize() (serialized []byte) {
+	return gotiny.Marshal(h)
+}
+
+// Deserialize the block
+func Deserialize(serialized []byte) (h *Header) {
+	gotiny.Unmarshal(serialized, h)
+	return
 }
