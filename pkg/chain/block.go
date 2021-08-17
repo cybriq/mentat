@@ -3,7 +3,7 @@ package chain
 import (
 	"math/big"
 
-	"github.com/niubaoshu/gotiny"
+	"github.com/cybriq/gotiny"
 	"github.com/zeebo/blake3"
 )
 
